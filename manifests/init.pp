@@ -61,6 +61,7 @@ class puppetdb (
   $manage_firewall          = $puppetdb::params::manage_firewall,
   $java_args                = $puppetdb::params::java_args,
   $max_threads              = $puppetdb::params::max_threads,
+  $package_source           = undef,
 ) inherits puppetdb::params {
 
   class { '::puppetdb::server':
@@ -119,6 +120,7 @@ class puppetdb (
     puppetdb_user             => $puppetdb_user,
     puppetdb_group            => $puppetdb_group,
     manage_firewall           => $manage_firewall,
+    package_source            => $package_source,
   }
 
   if ($database == 'postgres') {

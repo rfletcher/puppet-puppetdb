@@ -55,6 +55,7 @@ class puppetdb::server (
   $manage_firewall          = $puppetdb::params::manage_firewall,
   $java_args                = $puppetdb::params::java_args,
   $max_threads              = $puppetdb::params::max_threads,
+  $package_source           = undef,
 ) inherits puppetdb::params {
 
   # Apply necessary suffix if zero is specified.
@@ -102,9 +103,32 @@ class puppetdb::server (
     fail("read_database must be 'postgres'. You provided '${read_database}'")
   }
 
+  if $package_source == undef {
+    $package_provider = 'apt'
+    $package_ensure   = $puppetdb_version
+  } else {
+    $package_provider    = 'dpkg'
+    $real_package_source = '/tmp/puppetdb.deb'
+
+    wget::fetch { 'puppetdb':
+      source      => $package_source,
+      destination => $real_package_source,
+      before      => Package[$puppetdb_package],
+    }
+
+    # remove any version previously installed with apt
+    exec { 'remove apt puppetdb':
+      command => "dpkg -r ${puppetdb_package}",
+      onlyif  => "dpkg --list ${puppetdb_package} | grep '^i' && apt-cache madison ${puppetdb_package} | grep \"\$(dpkg-query --show ${puppetdb_package} | awk '{ print \$2 }')\"",
+      before  => Package[$puppetdb_package],
+    }
+  }
+
   package { $puppetdb_package:
-    ensure => $puppetdb_version,
-    notify => Service[$puppetdb_service],
+    ensure   => $package_ensure,
+    provider => $package_provider,
+    source   => $real_package_source,
+    notify   => Service[$puppetdb_service],
   }
 
   if $manage_firewall {
